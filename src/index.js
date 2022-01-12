@@ -1,20 +1,48 @@
-import * as fs from 'fs';
+import fs from 'fs';
 import _ from 'lodash';
+import path from 'path';
+const getFileData = (filePath) => {
+  const absolutePath = path.resolve(filePath);
+  const fileData = JSON.parse(fs.readFileSync(absolutePath));
+  return fileData;
+};
+
+const compareObjects = (object1, object2) => {
+  const keys = _.uniq([...Object.keys(object1), ...Object.keys(object2)]).sort();
+  const diff = keys
+    .reduce((acc, key) => {
+      if (_.has(object1, key) && !_.has(object2, key)) {
+        acc.push(`  - ${key}: ${object1[key]}`);
+        return acc;
+      }
+
+      if (!_.has(object1, key) && _.has(object2, key)) {
+        acc.push(`  + ${key}: ${object2[key]}`);
+        return acc;
+      }
+
+      if (object1[key] === object2[key]) {
+        acc.push(`    ${key}: ${object1[key]}`);
+        return acc;
+      }
+
+      acc.push(`  - ${key}: ${object1[key]}`);
+      acc.push(`  + ${key}: ${object2[key]}`);
+      return acc;
+    }, [])
+    .join('\n');
+  const result = `
+{
+${diff}
+}`;
+
+  return result;
+};
 
 const gendiff = (filepath1, filepath2) => {
-  const path1 = fs.readFileSync(filepath1, 'utf8');
-  const path2 = fs.readFileSync(filepath2, 'utf8');
-  const data1 = JSON.parse(path1);
-  const data2 = JSON.parse(path2);
-  const commonKeys = _.union(Object.keys(data1), Object.keys(data2));
-  const result = commonKeys.reduce((acc, key) => {
-    if (_.has(data1, key) && _.has(data2. key)) {
-      if (data1[key] === data2[key]) { return [...acc, `    ${key}: ${data1[key]}`]; }
-      return [...acc, `  - ${key}: ${data1[key]}`, `  + ${key}: ${data2[key]}`];
-    }
-    if (_.has(data1, key) && !_.has(data2, key)) { return [...acc, `  - ${key}: ${data1[key]}`]; }
-    return [...acc, `  + ${key}: ${data2[key]}`];
-  }, []);
-  return `{\n${result.join('\n')}\n}`;
+  const object1 = getFileData(filepath1);
+  const object2 = getFileData(filepath2);
+  return compareObjects(object1, object2);
 };
+
 export default gendiff;
